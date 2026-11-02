@@ -5,6 +5,9 @@ import { pool } from "./config/database.js";
 import { prisma } from "./lib/prisma.js";
 import categoryRoutes from "./routes/category.routes.js";
 import menuRoutes from "./routes/menu.routes.js";
+import tableRoutes from "./routes/table.routes.js";
+import orderRoutes from "./routes/order.routes.js";
+import paymentRoutes from "./routes/payment.routes.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -13,6 +16,9 @@ app.use(cors());
 app.use(express.json());
 app.use("/api/categories", categoryRoutes);
 app.use("/api/menus", menuRoutes);
+app.use("/api/tables", tableRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // Tes backend
 app.get("/api/health", (_req, res) => {
