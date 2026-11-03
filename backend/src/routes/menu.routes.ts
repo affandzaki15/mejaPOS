@@ -2,6 +2,10 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { z } from "zod";
 import { Prisma } from "../generated/prisma/client.js";
+import {
+  authenticateToken,
+  authorizeRole,
+} from "../middleware/auth.middleware.js";
 
 const router = Router();
 
@@ -38,7 +42,11 @@ router.get("/", async (_req, res) => {
   }
 });
 
-router.post("/", async (req, res) => {
+router.post(
+  "/",
+  authenticateToken,
+  authorizeRole("ADMIN"),
+  async (req, res) => {
   const validation = menuSchema.safeParse(req.body);
 
   if (!validation.success) {
@@ -75,7 +83,11 @@ router.post("/", async (req, res) => {
     });
   }
 });
-router.put("/:id", async (req, res) => {
+router.put(
+  "/:id",
+  authenticateToken,
+  authorizeRole("ADMIN"),
+  async (req, res) => {
   const id = Number(req.params.id);
 
   if (!Number.isInteger(id) || id <= 0) {
@@ -123,8 +135,11 @@ router.put("/:id", async (req, res) => {
     });
   }
 });
-
-router.delete("/:id", async (req, res) => {
+router.delete(
+  "/:id",
+  authenticateToken,
+  authorizeRole("ADMIN"),
+  async (req, res) => {
   const id = Number(req.params.id);
 
   // Validasi ID

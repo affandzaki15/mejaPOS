@@ -2,11 +2,19 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import {z} from "zod"
+import {
+  authenticateToken,
+  authorizeRole,
+} from "../middleware/auth.middleware.js";
 
 const router = Router();
 
 // GET: Menampilkan semua meja
-router.get("/", async (_req, res) => {
+router.get(
+  "/",
+  authenticateToken,
+  authorizeRole("ADMIN", "CASHIER", "KITCHEN"),
+  async (_req, res) => {
   try {
     const tables = await prisma.restaurant_tables.findMany({
       orderBy: {
@@ -30,7 +38,7 @@ router.get("/", async (_req, res) => {
 
 
 // POST: Menambahkan meja baru
-router.post("/", async (req, res) => {
+router.post("/", authenticateToken, authorizeRole("ADMIN"), async (req, res) => {
   const tableSchema = z.object({
     table_number: z.number().int().positive(),
     is_active: z.boolean().optional(),
@@ -72,7 +80,11 @@ router.post("/", async (req, res) => {
 
 
 // PUT: Memperbarui data meja
-router.put("/:id", async (req, res) => {
+router.put(
+  "/:id",
+  authenticateToken,
+  authorizeRole("ADMIN"),
+  async (req, res) => {
   const id = Number(req.params.id);
 
   if (!Number.isInteger(id) || id <= 0) {
@@ -125,7 +137,11 @@ router.put("/:id", async (req, res) => {
 
 
 // DELETE: Menghapus meja
-router.delete("/:id", async (req, res) => {
+router.delete(
+  "/:id",
+  authenticateToken,
+  authorizeRole("ADMIN"),
+  async (req, res) => {
   const id = Number(req.params.id);
 
   if (!Number.isInteger(id) || id <= 0) {

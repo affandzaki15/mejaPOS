@@ -8,6 +8,7 @@ import menuRoutes from "./routes/menu.routes.js";
 import tableRoutes from "./routes/table.routes.js";
 import orderRoutes from "./routes/order.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
+import authRoutes from "./routes/auth.routes.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -19,6 +20,7 @@ app.use("/api/menus", menuRoutes);
 app.use("/api/tables", tableRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/auth", authRoutes);
 
 // Tes backend
 app.get("/api/health", (_req, res) => {

@@ -1,11 +1,19 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { z } from "zod";
+import {
+  authenticateToken,
+  authorizeRole,
+} from "../middleware/auth.middleware.js";
 
 const router = Router();
 
 // GET: Menampilkan semua pembayaran
-router.get("/", async (_req, res) => {
+router.get(
+  "/",
+  authenticateToken,
+  authorizeRole("ADMIN", "CASHIER"),
+  async (_req, res) => {
   try {
     const payments = await prisma.payments.findMany({
       include: {
@@ -32,13 +40,16 @@ router.get("/", async (_req, res) => {
 });
 
 // POST: Memproses pembayaran pesanan
-router.post("/", async (req, res) => {
+router.post(
+  "/",
+  authenticateToken,
+  authorizeRole("ADMIN", "CASHIER"),
+  async (req, res) => {
   const paymentSchema = z.object({
-    order_id: z.number().int().positive(),
-    payment_method: z.enum(["CASH", "QRIS", "DEBIT", "CREDIT"]),
-    amount: z.number().positive(),
-    confirmed_by: z.number().int().positive(),
-  });
+  order_id: z.number().int().positive(),
+  payment_method: z.enum(["CASH", "QRIS", "DEBIT", "CREDIT"]),
+  amount: z.number().positive(),
+});
 
   const validation = paymentSchema.safeParse(req.body);
 
@@ -51,13 +62,27 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  const { order_id, payment_method, amount, confirmed_by } = validation.data;
+  const { order_id, payment_method, amount} = validation.data;
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      const order = await tx.orders.findUnique({
-        where: { id: order_id },
-      });
+      // Kunci baris pesanan sampai transaksi selesai.
+      // Request pembayaran lain untuk pesanan yang sama harus menunggu.
+      const orders = await tx.$queryRaw<
+        Array<{
+          id: number;
+          payment_status: string;
+          order_status: string;
+          total_amount: unknown;
+        }>
+      >`
+    SELECT id, payment_status, order_status, total_amount
+    FROM orders
+    WHERE id = ${order_id}
+    FOR UPDATE
+  `;
+
+      const order = orders[0];
 
       if (!order) {
         throw new Error("ORDER_NOT_FOUND");
@@ -75,6 +100,8 @@ router.post("/", async (req, res) => {
         throw new Error("AMOUNT_MISMATCH");
       }
 
+      const confirmed_by = req.user!.id;
+
       const payment = await tx.payments.create({
         data: {
           order_id,
@@ -91,6 +118,15 @@ router.post("/", async (req, res) => {
         data: {
           payment_status: "PAID",
           order_status: "NEW",
+        },
+      });
+      await tx.order_status_history.create({
+        data: {
+          order_id,
+          previous_status: order.order_status,
+          new_status: "NEW",
+          changed_by: confirmed_by,
+          notes: "Status berubah otomatis setelah pembayaran berhasil",
         },
       });
 
